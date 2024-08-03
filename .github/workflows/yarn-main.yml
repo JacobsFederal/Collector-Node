@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-  schedule:
-    - cron: "0 0 * * 1" # Update weekly on Monday Midnight
   workflow_dispatch:
 
 jobs:
@@ -175,6 +173,96 @@ jobs:
       - name: Show Artifacts
         run: ls -alh *tgz*
 
+      - name: Diff results
+        run: |
+          set -e
+          echo -e "Diff results for 18 to 20\n"
+          diff -yad --suppress-blank-empty --suppress-common-lines \
+            yarn-cache-18*.txt yarn-cache-20*.txt
+
+          case [ $? ] in
+            0)
+              echo -e "\nNo Diff results in yarn-cache 18->20"
+              echo -e "Deleting v18"
+              rm -f yarn-cache-18*
+              ;;
+            1)
+              echo -e "\nDiffs found in yarn-cache 18->20.";;
+            *)
+              echo -e "\nyarn-cache 18->20 diff error!!";;
+
+          diff -yad --suppress-blank-empty --suppress-common-lines \
+            node-modules-18*.txt node-modules-20*.txt
+
+          case [ $? ] in
+            0)
+              echo -e "\nNo Diff results in node-modules 18->20"
+              echo -e "Deleting v18"
+              rm -f node-modules-18*
+              ;;
+            1)
+              echo -e "\nDiffs found in node-modules 18->20.";;
+            *)
+              echo -e "\nnode-modules 18->20 Diff error!!";;
+
+          echo -e "\nDiff results for 18 to 22\n"
+          diff -yad --suppress-blank-empty --suppress-common-lines \
+            yarn-cache-18*.txt yarn-cache-22*.txt
+
+          case [ $? ] in
+            0)
+              echo -e "\nNo Diff results for yarn-cache 18->22"
+              echo -e "Deleting v18"
+              rm -f yarn-cache-18*
+              ;;
+            1)
+              echo -e "\nDiffs found in yarn-cache 18->22.";;
+            *)
+              echo -e "\nDiff error in yarn-cache 18->22!!";;
+
+          diff -yad --suppress-blank-empty --suppress-common-lines \
+            node-modules-18*.txt node-modules-22*.txt
+
+          case [ $? ] in
+            0)
+              echo -e "\nNo Diff results in node-modules 18->22."
+              echo -e "Deleting v18"
+              rm -f node-modules-18*
+              ;;
+            1)
+              echo -e "\nDiffs found in node-modules 18->22.";;
+            *)
+              echo -e "\nnode-modules 18->22 diff error!!";;
+
+          echo -e "\nDiff results for 20 to 22\n"
+          diff -yad --suppress-blank-empty --suppress-common-lines \
+            yarn-cache-20*.txt yarn-cache-22*.txt
+
+          case [ $? ] in
+            0)
+              echo -e "\nNo Diff results in yarn-cache 20->22"
+              echo -e "Deleting v20"
+              rm -f yarn-cache-20*
+              ;;
+            1)
+              echo -e "\nDiffs found in yarn-cache 20->22.";;
+            *)
+              echo -e "\nyarn-cache 20->22 diff error!!";;
+
+          diff -yad --suppress-blank-empty --suppress-common-lines \
+            node-modules-20*.txt node-modules-22*.txt
+            
+          case [ $? ] in
+            0)
+              echo -e "\nNo Diff results in node-modules 20->22"
+              echo -e "Deleting v20"
+              rm -f node-modules-20*
+              ;;
+            1)
+              echo -e "\nDiffs found in node-modules 20->22.";;
+            *)
+              echo -e "\nnode-modules 20->22 diff error!!";;
+
       - name: Make ISO
         run: |
           mkisofs -J -R -v -T -l \
@@ -224,24 +312,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           merge-multiple: true
-
-      - name: Diff results
-        run: |
-          echo -e "Diff results for 18 to 20\n"
-          diff -yad --suppress-blank-empty --suppress-common-lines \
-            yarn-cache-18*.txt yarn-cache-20*.txt
-          diff -yad --suppress-blank-empty --suppress-common-lines \
-            node-modules-18*.txt node-modules-20*.txt
-          echo -e "\nDiff results for 18 to 22\n"
-          diff -yad --suppress-blank-empty --suppress-common-lines \
-            yarn-cache-18*.txt yarn-cache-20*.txt
-          diff -yad --suppress-blank-empty --suppress-common-lines \
-            node-modules-18*.txt node-modules-20*.txt
-          echo -e "\nDiff results for 20 to 22\n"
-          diff -yad --suppress-blank-empty --suppress-common-lines \
-            yarn-cache-20*.txt yarn-cache-22*.txt
-          diff -yad --suppress-blank-empty --suppress-common-lines \
-            node-modules-20*.txt node-modules-22*.txt
 
       - name: Show Artifacts
         run: ls -lh *tgz* *iso*
