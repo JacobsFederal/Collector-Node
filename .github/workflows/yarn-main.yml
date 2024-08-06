@@ -141,6 +141,11 @@ jobs:
   MakeISO:
     runs-on: ubuntu-latest
     needs: [Date, Collect]
+    outputs:
+      deleteModules18: ${{ steps.MakeISO.outputs.deleteModules18 }}
+      deleteCache18: ${{ steps.MakeISO.outputs.deleteCache18 }}
+      deleteModules20: ${{ steps.MakeISO.outputs.deleteModules20 }}
+      deleteCache20: ${{ steps.MakeISO.outputs.deleteCache20 }}
     permissions:
       contents: write
       pull-requests: read
@@ -176,49 +181,69 @@ jobs:
       - name: Diff results
         run: |
           set -e
-          echo -e "Diff results for 18 to 20\n"
+          echo -e "Diff yarn-cache results for 18 to 20\n"
           diff -yad --suppress-blank-empty --suppress-common-lines \
             yarn-cache-18*.txt yarn-cache-20*.txt
 
+          # Case Diff yarn-cache results
           case [ $? ] in
             0)
               echo -e "\nNo Diff results in yarn-cache 18->20"
-              echo -e "Deleting v18"
-              rm -f yarn-cache-18*
+              echo "deleteCache18=true" >> $GITHUB_OUTPUT
               ;;
             1)
-              echo -e "\nDiffs found in yarn-cache 18->20.";;
+              echo -e "\nDiffs found in yarn-cache 18->20."
+              echo "deleteCache18=false" >> $GITHUB_OUTPUT
+              ;;
             *)
-              echo -e "\nyarn-cache 18->20 diff error!!";;
+              echo -e "\nyarn-cache 18->20 diff error!!"
+              echo "deleteCache18=false" >> $GITHUB_OUTPUT
+              ;;
 
           diff -yad --suppress-blank-empty --suppress-common-lines \
             node-modules-18*.txt node-modules-20*.txt
-
+          
+          # Case Diff node-modules results
           case [ $? ] in
             0)
               echo -e "\nNo Diff results in node-modules 18->20"
               echo -e "Deleting v18"
               rm -f node-modules-18*
+              echo "deleteModules18=true" >> $GITHUB_OUTPUT
               ;;
             1)
-              echo -e "\nDiffs found in node-modules 18->20.";;
-            *)
-              echo -e "\nnode-modules 18->20 Diff error!!";;
-
-          echo -e "\nDiff results for 18 to 22\n"
-          diff -yad --suppress-blank-empty --suppress-common-lines \
-            yarn-cache-18*.txt yarn-cache-22*.txt
-
-          case [ $? ] in
-            0)
-              echo -e "\nNo Diff results for yarn-cache 18->22"
-              echo -e "Deleting v18"
-              rm -f yarn-cache-18*
+              echo -e "\nDiffs found in node-modules 18->20."
+              echo "deleteModules18=false" >> $GITHUB_OUTPUT
               ;;
-            1)
-              echo -e "\nDiffs found in yarn-cache 18->22.";;
             *)
-              echo -e "\nDiff error in yarn-cache 18->22!!";;
+              echo -e "\nnode-modules 18->20 Diff error!!"
+              echo "deleteModules18=false" >> $GITHUB_OUTPUT
+              ;;
+          
+          if [ `grep deleteModules18 $GITHUB_OUTPUT` -eq "true"]; then
+            echo -e "Deleting modules v18"
+            rm -f node-modules-18*
+          else
+            echo -e "\nDiff results for 18 to 22\n"
+            diff -yad --suppress-blank-empty --suppress-common-lines \
+              yarn-cache-18*.txt yarn-cache-22*.txt
+
+            case [ $? ] in
+              0)
+                echo -e "\nNo Diff results for yarn-cache 18->22"
+                echo -e "Deleting v18"
+                rm -f yarn-cache-18*
+                echo "deleteCache18=true" >> $GITHUB_OUTPUT
+                ;;
+              1)
+                echo -e "\nDiffs found in yarn-cache 18->22."
+                echo "deleteCache18=false" >> $GITHUB_OUTPUT
+                ;;
+              *)
+                echo -e "\nDiff error in yarn-cache 18->22!!"
+                echo "deleteCache18=false" >> $GITHUB_OUTPUT
+                ;;
+          fi
 
           diff -yad --suppress-blank-empty --suppress-common-lines \
             node-modules-18*.txt node-modules-22*.txt
@@ -263,6 +288,12 @@ jobs:
             *)
               echo -e "\nnode-modules 20->22 diff error!!";;
 
+      # - name: Delete Identicals
+      #   run: |
+      #     if [ ${{ needs.Date.outputs.deleteModules18 }} ]
+      #     echo -e "Deleting v18"
+      #         rm -f yarn-cache-18*
+
       - name: Make ISO
         run: |
           mkisofs -J -R -v -T -l \
@@ -297,9 +328,71 @@ jobs:
           path: ${{ vars.COLLECTOR }}-${{ needs.Date.outputs.Date }}.iso.sha
           if-no-files-found: error
 
-  Release:
+      - name: Diff results
+        run: |
+          echo -e "Diff results for 18 to 20\n"
+          diff -yad --suppress-blank-empty --suppress-common-lines \
+            yarn-cache-18*.txt yarn-cache-20*.txt
+          diff -yad --suppress-blank-empty --suppress-common-lines \
+            node-modules-18*.txt node-modules-20*.txt
+          echo -e "\nDiff results for 18 to 22\n"
+          diff -yad --suppress-blank-empty --suppress-common-lines \
+            yarn-cache-18*.txt yarn-cache-20*.txt
+          diff -yad --suppress-blank-empty --suppress-common-lines \
+            node-modules-18*.txt node-modules-20*.txt
+          echo -e "\nDiff results for 20 to 22\n"
+          diff -yad --suppress-blank-empty --suppress-common-lines \
+            yarn-cache-20*.txt yarn-cache-22*.txt
+          diff -yad --suppress-blank-empty --suppress-common-lines \
+            node-modules-20*.txt node-modules-22*.txt
+
+  OfflineTest:
     runs-on: ubuntu-latest
     needs: [Date, Collect, MakeISO]
+    permissions:
+      contents: write
+      pull-requests: read
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+    
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Download ISO and hash
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ vars.COLLECTOR }}-${{ needs.Date.outputs.Date }}.iso*
+          merge-multiple: true 
+
+      - name: Validate Hashes
+        run: |
+          echo -e "\nFigure out how to check both isos here"
+          ls -Alht
+
+      - name: Mount ISO
+        run: sudo mount -v -o loop ${{ vars.COLLECTOR }}-${{ needs.Date.outputs.Date }}.iso /mnt
+
+      - name: UnTARchive Yarn Cache
+        run: tar -xzvf /mnt/yarn-cache-${{ matrix.node-version }}-${{ needs.Date.outputs.Date }}.tgz
+
+      - name: Run yarn install
+        run: |
+          echo -e "Setup Yarn for inaccessable network"
+          npm set registry http://localhost:4873/
+          yarn config set npmRegistryServer http://localhost:4873/
+          echo -e "\nRun yarn install --immutable\n"
+          yarn install --immutable
+
+      - name: Run yarn install
+        run: |
+          echo -e "Run Yarn"
+          yarn run
+
+  Release:
+    runs-on: ubuntu-latest
+    needs: [Date, Collect, MakeISO, OfflineTest]
     permissions:
       contents: write
       pull-requests: read
