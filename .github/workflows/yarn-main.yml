@@ -179,9 +179,9 @@ jobs:
         run: ls -alh *tgz*
 
       - name: Diff results
-        shell: /usr/bin/bash
+        shell: bash
         run: |
-          echo -e "Diff yarn-cache results for 18 to 20\n"
+          echo -e "Diff yarn-cache results for 18 to 20"
           diff -yad --suppress-blank-empty --suppress-common-lines \
             yarn-cache-18*.txt yarn-cache-20*.txt
 
@@ -329,7 +329,7 @@ jobs:
           if-no-files-found: error
 
       - name: Diff results
-        shell: /usr/bin/bash
+        shell: bash
         run: |
           echo -e "Diff results for 18 to 20"
           diff -yad --suppress-blank-empty --suppress-common-lines \
